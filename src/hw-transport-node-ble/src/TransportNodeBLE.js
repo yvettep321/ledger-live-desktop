@@ -14,31 +14,18 @@ import { sendAPDU } from './sendAPDU'
 import { receiveAPDU } from './receiveAPDU'
 import { monitorCharacteristic } from './monitorCharacteristic'
 
-const available = 'poweredOn'
+const POWERED_ON = 'poweredOn'
 
-const requiresBluetooth = () => {
-  if (noble.state !== available) {
-    throw new Error('Bluetooth not ready')
+const availability: Observable<boolean> = Observable.create(observer => {
+  const onAvailabilityChanged = e => {
+    observer.next(e === POWERED_ON)
   }
-  return noble
-}
-
-const availability = (): Observable<boolean> =>
-  Observable.create(observer => {
-    const bluetooth = requiresBluetooth()
-    const onAvailabilityChanged = e => {
-      observer.next(e === available)
-    }
-    bluetooth.addListener('stateChanged', onAvailabilityChanged) // events lib?
-    let unsubscribed = false
-    if (!unsubscribed) {
-      observer.next(noble.state === available)
-    }
-    return () => {
-      unsubscribed = true
-      bluetooth.removeListener('stateChanged', onAvailabilityChanged)
-    }
-  })
+  noble.addListener('stateChanged', onAvailabilityChanged) // events lib?
+  observer.next(noble.state === POWERED_ON)
+  return () => {
+    noble.removeListener('stateChanged', onAvailabilityChanged)
+  }
+})
 
 const transportsCache = {}
 
@@ -188,10 +175,7 @@ async function open(deviceOrId: Device | string, needsReconnect: boolean) {
  * import BluetoothTransport from "@ledgerhq/hw-transport-node-ble";
  */
 export default class BluetoothTransport extends Transport<Device | string> {
-  static isSupported = (): Promise<boolean> =>
-    Promise.resolve()
-      .then(requiresBluetooth)
-      .then(() => true, () => false)
+  static isSupported = (): Promise<boolean> => Promise.resolve(true)
 
   /**
    * observe event with { available: bool, type: string }
@@ -206,40 +190,44 @@ export default class BluetoothTransport extends Transport<Device | string> {
    * Scan for Ledger Bluetooth devices.
    * On this implementation, it only emits ONE device, the one that was selected in the UI (if any).
    */
-  static listen(observer: *) {
+  static listen(o: *) {
     logSubject.next({
       type: 'verbose',
       message: 'listen...',
     })
+    return Observable.create(observer => {
+      const discoveredDevices = {}
 
-    let unsubscribed
-    const discoveredDevices = {}
-
-    const bluetooth = requiresBluetooth()
-    const allowDuplicates = true
-    const detectingDevices = peripheral => {
-      if (peripheral.advertisement.localName !== 'unknown' && peripheral.advertisement.localName) {
-        if (!discoveredDevices[peripheral.uuid]) {
-          discoveredDevices[peripheral.uuid] = peripheral
-          if (!unsubscribed) {
+      const allowDuplicates = true
+      const detectingDevices = peripheral => {
+        if (
+          peripheral.advertisement.localName !== 'unknown' &&
+          peripheral.advertisement.localName
+        ) {
+          if (!discoveredDevices[peripheral.uuid]) {
+            discoveredDevices[peripheral.uuid] = peripheral
             observer.next({
               type: 'add',
               descriptor: peripheral,
+              device: {
+                id: peripheral.uuid,
+                name: peripheral.advertisement.localName,
+              },
             })
-            // observer.complete(); // comment to continue listening after first device is discovered
           }
         }
-        // observer.error(new TransportOpenUserCancelled(error.message)); //  no error possible with noble
       }
-    }
-    bluetooth.addListener('discover', detectingDevices)
-    bluetooth.startScanning(getBluetoothServiceUuids(), allowDuplicates)
+      noble.addListener('discover', detectingDevices)
 
-    function unsubscribe() {
-      bluetooth.removeListener('discover', detectingDevices)
-      unsubscribed = true
-    }
-    return { unsubscribe }
+      noble.startScanning(getBluetoothServiceUuids(), allowDuplicates)
+
+      function unsubscribe() {
+        noble.removeListener('discover', detectingDevices)
+        noble.stopScanning()
+      }
+
+      return unsubscribe
+    }).subscribe(o)
   }
 
   /**

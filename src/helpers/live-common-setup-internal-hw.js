@@ -10,6 +10,7 @@ import TransportHttp from '@ledgerhq/hw-transport-http'
 import { DisconnectedDevice } from '@ledgerhq/errors'
 import { retry } from './promise'
 import './implement-libcore'
+import { openById } from '../commands/experimentalListenBLE'
 
 /* eslint-disable guard-for-in */
 for (const k in process.env) {
@@ -44,6 +45,20 @@ setErrorRemapping(e => {
     return throwError(new DisconnectedDevice(e.message))
   }
   return throwError(e)
+})
+
+registerTransportModule({
+  id: 'ble',
+  open: globalId => {
+    if (!globalId.startsWith('ble:')) {
+      return null
+    }
+    return openById(globalId.slice(4)).then(t => {
+      t.setDebugMode(logger.apdu)
+      return t
+    })
+  },
+  disconnect: () => Promise.resolve(),
 })
 
 if (getEnv('DEVICE_PROXY_URL')) {
