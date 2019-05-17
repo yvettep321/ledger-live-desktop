@@ -31,6 +31,7 @@ import testApdu from 'commands/testApdu'
 import testCrash from 'commands/testCrash'
 import testInterval from 'commands/testInterval'
 import uninstallApp from 'commands/uninstallApp'
+import experimentalListenBLE from 'commands/experimentalListenBLE'
 
 const all: Array<Command<any, any>> = [
   autoUpdate,
@@ -61,6 +62,7 @@ const all: Array<Command<any, any>> = [
   testCrash,
   testInterval,
   uninstallApp,
+  experimentalListenBLE,
 ]
 
 export const commandsById = {}

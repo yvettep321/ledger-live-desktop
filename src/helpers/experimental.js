@@ -10,15 +10,25 @@ export type FeatureCommon = {
   shadow?: boolean,
 }
 
-export type FeatureToggle = {
-  type: 'toggle',
-  valueOn?: any,
-  valueOff?: any,
-}
+export type FeatureToggle =
+  | {
+      type: 'toggle',
+      valueOn?: any,
+      valueOff?: any,
+    }
+  | {
+      type: 'bluetooth',
+    }
 
 export type Feature = FeatureCommon & FeatureToggle
 
 export const experimentalFeatures: Feature[] = [
+  {
+    type: 'bluetooth',
+    name: 'EXPERIMENTAL_BLE',
+    title: 'Experimental Bluetooth',
+    description: 'Use Nano X devices over bluetooth',
+  },
   {
     type: 'toggle',
     name: 'EXPERIMENTAL_LANGUAGES',

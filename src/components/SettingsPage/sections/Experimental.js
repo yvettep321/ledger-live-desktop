@@ -18,6 +18,7 @@ import {
   SettingsSectionRow as Row,
 } from '../SettingsSection'
 import ExperimentalSwitch from '../ExperimentalSwitch'
+import ExperimentalBluetooth from '../ExperimentalBluetooth'
 
 type Props = {
   t: T,
@@ -25,6 +26,7 @@ type Props = {
 
 const experimentalTypesMap = {
   toggle: ExperimentalSwitch,
+  bluetooth: ExperimentalBluetooth,
 }
 
 const ExperimentalFeatureRow = ({ feature }: { feature: Feature }) => {
