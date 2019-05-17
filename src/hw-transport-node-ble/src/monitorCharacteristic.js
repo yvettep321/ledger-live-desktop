@@ -18,6 +18,8 @@ export const monitorCharacteristic = (characteristic: Characteristic): Observabl
       if (error) o.error(error)
     }
 
+    console.log(characteristic)
+
     characteristic.on('data', onCharacteristicValueChanged)
     characteristic.subscribe(onSubscribe)
 

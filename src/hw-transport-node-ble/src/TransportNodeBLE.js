@@ -29,6 +29,17 @@ const availability: Observable<boolean> = Observable.create(observer => {
 
 const transportsCache = {}
 
+const disconnectDevice = device =>
+  new Promise((resolve, reject) => {
+    device.disconnect(error => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve()
+      }
+    })
+  })
+
 const retrieveService = async device => {
   if (!device.gatt) throw new Error('bluetooth gatt not found')
   const [service] = await device.gatt.getPrimaryServices()
@@ -147,18 +158,7 @@ async function open(deviceOrId: Device | string, needsReconnect: boolean) {
     }
 
     if (needsReconnect) {
-      const disconnect = device =>
-        new Promise((resolve, reject) => {
-          device.disconnect(error => {
-            if (error) {
-              reject(error)
-            } else {
-              resolve()
-            }
-          })
-        })
-
-      await disconnect(device)
+      await disconnectDevice(device)
       // necessary time for the bonding workaround
       await new Promise(s => setTimeout(s, 4000))
     }
@@ -249,15 +249,7 @@ export default class BluetoothTransport extends Transport<Device | string> {
     })
     const transport = transportsCache[id]
     if (transport) {
-      await new Promise((resolve, reject) => {
-        transport.device.disconnect(error => {
-          if (error) {
-            reject(error)
-          } else {
-            resolve()
-          }
-        })
-      })
+      await disconnectDevice(transport.device)
     }
   }
 
@@ -312,7 +304,7 @@ export default class BluetoothTransport extends Transport<Device | string> {
           type: 'ble-error',
           message: 'inferMTU got ' + String(e),
         })
-        this.device.disconnect()
+        await disconnectDevice(this.device)
         throw e
       }
     })
@@ -360,7 +352,7 @@ export default class BluetoothTransport extends Transport<Device | string> {
         })
         if (this.notYetDisconnected) {
           // in such case we will always disconnect because something is bad.
-          this.device.gatt.disconnect()
+          disconnectDevice(this.device)
         }
         throw e
       }
