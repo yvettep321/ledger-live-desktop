@@ -10,22 +10,23 @@ export const monitorCharacteristic = (characteristic: Characteristic): Observabl
       message: 'start monitor ' + characteristic.uuid,
     })
 
-    function onCharacteristicValueChanged(event) {
-      const characteristic = event.target
-      if (characteristic.value) {
-        o.next(Buffer.from(characteristic.value.buffer))
-      }
+    function onCharacteristicValueChanged(data) {
+      console.log({ data })
+      o.next(Buffer.from(data))
+    }
+    function onSubscribe(error) {
+      if (error) o.error(error)
     }
 
-    characteristic.subscribe(error => o.error(error))
-    characteristic.addListener('data', onCharacteristicValueChanged)
+    characteristic.on('data', onCharacteristicValueChanged)
+    characteristic.subscribe(onSubscribe)
 
     return () => {
       logSubject.next({
         type: 'verbose',
         message: 'end monitor ' + characteristic.uuid,
       })
-      characteristic.unsubscribe()
       characteristic.removeListener('data', onCharacteristicValueChanged)
+      characteristic.unsubscribe()
     }
   })

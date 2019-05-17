@@ -70,8 +70,9 @@ async function open(deviceOrId: Device | string, needsReconnect: boolean) {
         device.connect(error => {
           if (error) {
             reject(new Error(error))
+          } else {
+            resolve()
           }
-          resolve()
         })
       })
 
@@ -88,9 +89,10 @@ async function open(deviceOrId: Device | string, needsReconnect: boolean) {
         ) => {
           error
             ? reject(new Error(error))
-            : characteristics[0].properties[0] === 'notify'
+            : // TODO should reuse logic of devices like done in other transports
+              characteristics[0].properties[0] === 'notify'
               ? resolve([services[0], ...characteristics])
-              : resolve([services[0], ...characteristics.resolve()])
+              : resolve([services[0], ...characteristics.reverse()])
         })
       })
     })
@@ -118,7 +120,6 @@ async function open(deviceOrId: Device | string, needsReconnect: boolean) {
 
   transportsCache[transport.id] = transport
   const onDisconnect = e => {
-    console.log('onDisconnect!', e)
     delete transportsCache[transport.id]
     transport.notYetDisconnected = false
     notif.unsubscribe()
@@ -141,24 +142,25 @@ async function open(deviceOrId: Device | string, needsReconnect: boolean) {
     // to make sure we do a disconnect() after the first pairing time
     // because of a firmware bug
 
-    if (afterMTUTime - beforeMTUTime < 500) {
+    if (afterMTUTime - beforeMTUTime < 1000) {
       needsReconnect = false // (optim) there is likely no new pairing done because mtu answer was fast.
     }
 
     if (needsReconnect) {
-      const disconnect = device => {
-        /*
-        device.once('disconnect', () => {
-          return new Promise((resolve, reject) => {
-            resolve()
+      const disconnect = device =>
+        new Promise((resolve, reject) => {
+          device.disconnect(error => {
+            if (error) {
+              reject(error)
+            } else {
+              resolve()
+            }
           })
         })
-        */
-        // FIXME this can't work @alix
-      }
+
       await disconnect(device)
       // necessary time for the bonding workaround
-      await new Promise(s => setTimeout(s, 1000))
+      await new Promise(s => setTimeout(s, 4000))
     }
   }
 
@@ -247,8 +249,14 @@ export default class BluetoothTransport extends Transport<Device | string> {
     })
     const transport = transportsCache[id]
     if (transport) {
-      transport.device.disconnect(error => {
-        // TODO @alix need to await on a promise that emit this if error is truely
+      await new Promise((resolve, reject) => {
+        transport.device.disconnect(error => {
+          if (error) {
+            reject(error)
+          } else {
+            resolve()
+          }
+        })
       })
     }
   }
@@ -365,13 +373,12 @@ export default class BluetoothTransport extends Transport<Device | string> {
       type: 'ble-frame-write',
       message: buffer.toString('hex'),
     })
-    const writeNoble = () =>
-      new Promise((resolve, reject) => {
-        this.writeCharacteristic.once('write', false, () => resolve())
-        this.writeCharacteristic.write(buffer, false) // with response
+    await new Promise((resolve, reject) => {
+      this.writeCharacteristic.write(buffer, false, e => {
+        if (e) reject(e)
+        else resolve()
       })
-
-    await writeNoble()
+    })
   }
 
   async close() {
