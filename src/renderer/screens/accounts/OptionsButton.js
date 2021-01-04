@@ -2,7 +2,7 @@
 
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import styled from "styled-components";
 
 import Track from "~/renderer/analytics/Track";
@@ -13,9 +13,10 @@ import Switch from "~/renderer/components/Switch";
 import Tooltip from "~/renderer/components/Tooltip";
 import IconDots from "~/renderer/icons/Dots";
 import IconDownloadCloud from "~/renderer/icons/DownloadCloud";
-import IconSend from "~/renderer/icons/Send";
+import IconQrCode from "~/renderer/icons/QrCode";
+import { hideEmptyTokenAccountsSelector } from "~/renderer/reducers/settings";
 import { openModal } from "~/renderer/actions/modals";
-import { useHideEmptyTokenAccounts } from "~/renderer/actions/settings";
+import { setHideEmptyTokenAccounts } from "~/renderer/actions/settings";
 
 import type { DropDownItemType } from "~/renderer/components/DropDownSelector";
 import type { ThemedComponent } from "~/renderer/styles/StyleProvider";
@@ -45,11 +46,16 @@ type ItemType = DropDownItemType & {
 
 const OptionsButton = () => {
   const dispatch = useDispatch();
-  const [hideEmptyTokenAccounts, setHideEmptyTokenAccounts] = useHideEmptyTokenAccounts();
-
+  const hideEmptyTokenAccounts = useSelector(hideEmptyTokenAccountsSelector);
   const onOpenModal = useCallback(
     (modal: string) => {
       dispatch(openModal(modal));
+    },
+    [dispatch],
+  );
+  const onSetHideEmptyTokenAccounts = useCallback(
+    (status: boolean) => {
+      dispatch(setHideEmptyTokenAccounts(status));
     },
     [dispatch],
   );
@@ -65,7 +71,7 @@ const OptionsButton = () => {
     {
       key: "exportAccounts",
       label: t("accounts.optionsMenu.exportToMobile"),
-      icon: <IconSend size={16} />,
+      icon: <IconQrCode size={16} />,
       onClick: () => onOpenModal("MODAL_EXPORT_ACCOUNTS"),
     },
     {
@@ -79,7 +85,7 @@ const OptionsButton = () => {
       onClick: (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        setHideEmptyTokenAccounts(!hideEmptyTokenAccounts);
+        onSetHideEmptyTokenAccounts(!hideEmptyTokenAccounts);
       },
     },
   ];
@@ -101,7 +107,7 @@ const OptionsButton = () => {
                   : "hideEmptyTokenAccountsDisabled"
               }
             />
-            <Switch isChecked={hideEmptyTokenAccounts} onChange={setHideEmptyTokenAccounts} />
+            <Switch isChecked={hideEmptyTokenAccounts} onChange={onSetHideEmptyTokenAccounts} />
           </Box>
         ) : item.icon ? (
           <Box mr={4}>{item.icon}</Box>
